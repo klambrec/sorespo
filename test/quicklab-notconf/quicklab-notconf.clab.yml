@@ -13,6 +13,20 @@ mgmt:
 
 topology:
   nodes:
+    oidc:
+      kind: linux
+      image: ghcr.io/dexidp/dex:v2.45.1
+      aliases:
+        - oidc.localhost
+      cmd: dex serve /etc/dex/quicklab.yaml
+      env:
+        OIDC_PORT: "${OIDC_PORT}"
+        WEBUI_PORT: "${WEBUI_PORT}"
+        AUTH_PUBLIC_ORIGIN: "${AUTH_PUBLIC_ORIGIN}"
+      binds:
+        - oidc/dex.yaml:/etc/dex/quicklab.yaml:ro
+      ports:
+        - "127.0.0.1:${OIDC_PORT}:${OIDC_PORT}/tcp"
     ams-core-1:
       kind: linux
       image: ghcr.io/notconf/notconf-cisco-xr:2531
@@ -49,6 +63,19 @@ topology:
     sweave:
       kind: linux
       image: sorespo-sweave-base
+      env:
+        STRATOWEAVE_HTTP__AUTH__PUBLIC_ORIGIN: "${AUTH_PUBLIC_ORIGIN}"
+        STRATOWEAVE_HTTP__AUTH__ALLOW_INSECURE_HTTP: "True"
+        STRATOWEAVE_HTTP__AUTH__LOCAL__USERNAME: "admin"
+        STRATOWEAVE_HTTP__AUTH__LOCAL__PASSWORD_HASH_FILE: "/auth/local-password.hash"
+        STRATOWEAVE_HTTP__AUTH__OIDC__ISSUER: "http://oidc.localhost:${OIDC_PORT}/dex"
+        STRATOWEAVE_HTTP__AUTH__OIDC__CLIENT_ID: "sorespo"
+        STRATOWEAVE_HTTP__AUTH__OIDC__CLIENT_SECRET_FILE: "/auth/client-secret"
+        # Dex encodes its local connector and userID into the stable sub claim.
+        STRATOWEAVE_HTTP__AUTH__OIDC__ALLOWED_SUBJECTS: '["Cg5xdWlja2xhYi1hZG1pbhIFbG9jYWw"]'
+      binds:
+        - oidc/local-password.hash:/auth/local-password.hash:ro
+        - oidc/client-secret:/auth/client-secret:ro
       ports:
         # The sorespo binary serves the APIs and the embedded Web UI on :80.
         - "${WEBUI_PUBLISH}:80/tcp"

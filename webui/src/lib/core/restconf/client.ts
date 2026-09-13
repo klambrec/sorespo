@@ -1,6 +1,6 @@
 import type { RestconfRequestOptions } from '$lib/core/restconf/types';
 
-import { demoFetch } from '$lib/demo/gate';
+import { authenticatedFetch } from '$lib/core/auth/session';
 
 const RESTCONF_BASE = '/restconf';
 // Synchronous RESTCONF writes wait for device application, which cannot finish
@@ -59,10 +59,10 @@ async function restconfRequest<T>(
     headers.set('content-type', init.contentType);
   }
 
-  const response = await (demoFetch ?? fetchFn)(`${RESTCONF_BASE}/${normalizePath(path)}`, {
+  const response = await authenticatedFetch(`${RESTCONF_BASE}/${normalizePath(path)}`, {
     ...init,
     headers
-  });
+  }, fetchFn);
 
   return readResponse<T>(response, init.readBody ?? true);
 }
@@ -75,10 +75,10 @@ export function restconfGetJson<T>(path: string, fetchFn: Fetch = fetch): Promis
 }
 
 export async function restconfExists(path: string, fetchFn: Fetch = fetch): Promise<boolean> {
-  const response = await (demoFetch ?? fetchFn)(`${RESTCONF_BASE}/${normalizePath(path)}`, {
+  const response = await authenticatedFetch(`${RESTCONF_BASE}/${normalizePath(path)}`, {
     method: 'GET',
     headers: { accept: 'application/yang-data+json' }
-  });
+  }, fetchFn);
 
   if (response.status === 404) {
     return false;

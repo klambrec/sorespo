@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { authState, canAccessApplication } from '$lib/core/auth/session';
 
   interface Props {
     open?: boolean;
@@ -26,6 +27,11 @@
   // showModal() traps focus and restores it to the opener on close.
   $effect(() => {
     if (!dialog) return;
+    if (!canAccessApplication($authState)) {
+      if (dialog.open) dialog.close();
+      if (open) oncancel?.();
+      return;
+    }
     if (open && !dialog.open) {
       dialog.showModal();
       void tick().then(() => cancelButton?.focus());

@@ -52,8 +52,30 @@ Run checks and builds from `webui/`:
 
 ```bash
 bun run check
+bun run test
 bun run build
 ```
+
+## Authentication
+
+When HTTP authentication is enabled in StratoWeave, the UI starts with a
+sign-in page offering the configured OIDC provider and local fallback account.
+The backend performs the OIDC exchange and token refresh; the browser receives
+an opaque HttpOnly session cookie and session metadata. The UI keeps its CSRF
+token in memory and sends it on API mutations. It does not use browser storage
+for authentication credentials.
+
+An expired session hides the workspace and pauses API polling until sign-in.
+Local sign-in preserves open drafts; provider sign-in navigates away, so save
+edits before starting it. Explicit sign-out clears the mounted workspace.
+
+The Vite proxy includes `/auth` as well as the application APIs. To authenticate
+through Vite, configure the backend's public application origin to the Vite URL
+(normally `http://localhost:5173`) and register that origin's
+`/auth/oidc/callback` URL with the provider. Use that same origin throughout the
+login flow: origin checks and host-only cookies are intentional. Ordinary
+development against an authentication-disabled backend and the standalone
+demo continue to work without a sign-in page.
 
 ## Embedded Assets
 

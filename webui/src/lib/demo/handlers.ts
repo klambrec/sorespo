@@ -546,6 +546,7 @@ async function handleOrchestron(
     }
 
     if (action === 'resync') {
+      if (method !== 'POST') return notFound('resync expects POST');
       device.hasRunningConfig = true;
       appendLog(name, 'resync');
       return json({});

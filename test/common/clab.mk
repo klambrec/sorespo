@@ -4,11 +4,13 @@ export IMAGE_PATH?=ghcr.io/stratoweave/
 # Host port for the sorespo HTTP port 80 (APIs + embedded Web UI) on sweave.
 export WEBUI_PORT?=3000
 # Docker publish spec (host address and port) for that port. Loopback by
-# default: the HTTP API has no authentication. To listen on all interfaces set
+# default, including labs that enable HTTP authentication. To listen on all interfaces set
 # WEBUI_PUBLISH=$(WEBUI_PORT) (no address), or e.g. WEBUI_PUBLISH=10.0.0.5:3000
 # for one address. (containerlab drops empty variables, so the address cannot
 # be a separate variable.)
 export WEBUI_PUBLISH?=127.0.0.1:$(WEBUI_PORT)
+# Additional lab-specific variables to forward into containerlab.
+CLAB_EXTRA_ENV?=
 
 ifeq (true,$(REMOTE_CONTAINERS))
 CLAB_BIN:=containerlab
@@ -34,6 +36,7 @@ CLAB_BIN:=docker run --rm $(INTERACTIVE) --privileged \
     -e IMAGE_PATH=$(IMAGE_PATH) \
     -e WEBUI_PORT=$(WEBUI_PORT) \
     -e WEBUI_PUBLISH=$(WEBUI_PUBLISH) \
+    $(CLAB_EXTRA_ENV) \
     -w $(CURDIR) \
     $(CLAB_CONTAINER_IMAGE) containerlab
 endif

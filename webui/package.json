@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:demo": "PUBLIC_DEMO=1 vite build && node scripts/patch-demo-fallback.mjs",
     "preview": "vite preview",
+    "test": "bun test tests",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {

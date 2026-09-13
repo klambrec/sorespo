@@ -1,4 +1,4 @@
-import { demoFetch } from '$lib/demo/gate';
+import { authenticatedFetch } from '$lib/core/auth/session';
 
 import type { StatusTone } from '$lib/core/ui/tones';
 
@@ -131,10 +131,10 @@ async function apiRequest<T>(path: string, init: RequestInit = {}, fetchFn: Fetc
   }
 
   return readJson<T>(
-    await (demoFetch ?? fetchFn)(`${API_BASE}${path}`, {
+    await authenticatedFetch(`${API_BASE}${path}`, {
       ...init,
       headers
-    })
+    }, fetchFn)
   );
 }
 
@@ -197,7 +197,7 @@ export async function fetchDevice(deviceId: string, fetchFn: Fetch = fetch): Pro
 }
 
 export async function resyncDevice(deviceId: string): Promise<unknown> {
-  return apiRequest(`/device/${encodeURIComponent(deviceId)}/resync`);
+  return apiRequest(`/device/${encodeURIComponent(deviceId)}/resync`, { method: 'POST' });
 }
 
 export async function fetchDeviceConfigQueue(
@@ -260,7 +260,7 @@ export async function fetchDeviceConfig(
   view: DeviceConfigView,
   format = 'json'
 ): Promise<string> {
-  const response = await (demoFetch ?? fetch)(
+  const response = await authenticatedFetch(
     `${API_BASE}/device/${encodeURIComponent(deviceId)}/${view}?format=${format}`
   );
   if (!response.ok) {
@@ -287,7 +287,7 @@ const LAYER_ACCEPT: Record<string, string> = {
 export async function fetchLayerConfig(index: number, format = 'xml'): Promise<string> {
   const accept = LAYER_ACCEPT[format] ?? LAYER_ACCEPT.xml;
   const suffix = format === 'adata' ? '?loose=true' : '';
-  const response = await (demoFetch ?? fetch)(`${API_BASE}/layer/${index}${suffix}`, {
+  const response = await authenticatedFetch(`${API_BASE}/layer/${index}${suffix}`, {
     headers: { accept }
   });
   if (!response.ok) {
