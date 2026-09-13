@@ -53,6 +53,7 @@
     if (nextData === lastData) return;
 
     untrack(() => {
+      const previousLoadError = lastData.loadError;
       lastData = nextData;
       const sameRoute = routeKey === lastRouteKey;
       lastRouteKey = routeKey;
@@ -60,6 +61,7 @@
       // A same-route reload (Refresh, invalidate) must not clobber unsaved edits.
       if (sameRoute && store.dirty) {
         if (nextData.loadError) status.error(nextData.loadError);
+        else if (previousLoadError && status.message?.text === previousLoadError) status.set(null);
         return;
       }
 

@@ -1,0 +1,32 @@
+# Disposable test identities and credentials; never use these in production.
+# The image entrypoint renders these environment placeholders with gomplate.
+issuer: http://oidc.localhost:{{ .Env.OIDC_PORT }}/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:{{ .Env.OIDC_PORT }}
+oauth2:
+  grantTypes: [authorization_code, refresh_token]
+  responseTypes: [code]
+  skipApprovalScreen: false
+staticClients:
+  - id: sorespo
+    secret: quicklab-client-secret
+    name: SORESPO Quicklab
+    redirectURIs:
+      - {{ .Env.AUTH_PUBLIC_ORIGIN }}/auth/oidc/callback
+enablePasswordDB: true
+staticPasswords:
+  - email: admin@quicklab.example
+    hash: "$2b$12$AaFqx0ZW0v.ptPTK.MTfwutym/hzYhR/wLzjNX3JXvKuT3gdNifWK"
+    username: Quicklab Admin
+    userID: quicklab-admin
+  - email: denied@quicklab.example
+    hash: "$2b$12$AaFqx0ZW0v.ptPTK.MTfwutym/hzYhR/wLzjNX3JXvKuT3gdNifWK"
+    username: Denied User
+    userID: quicklab-denied
+expiry:
+  idTokens: 30s
+  refreshTokens:
+    validIfNotUsedFor: 30m
+    absoluteLifetime: 8h

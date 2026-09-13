@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { canAccessApplication, session } from '$lib/core/auth/session';
 
 import { fetchAllDeviceQueues, type QueueItemSummary } from '$lib/core/orchestron/client';
 import { startPolling } from '$lib/core/util/poll';
@@ -32,6 +33,7 @@ function fetchOnce(): Promise<void> {
       } finally {
         inFlight = null;
       }
+      if (!canAccessApplication(session.state)) current = INITIAL;
       internal.set(current);
     })();
   }

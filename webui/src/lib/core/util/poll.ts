@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { authState, canAccessApplication } from '$lib/core/auth/session';
 
 /**
  * Run `task` every `intervalMs` while the tab is visible. A tick is skipped
@@ -15,9 +16,11 @@ export function startPolling(
 
   let inFlight = false;
   let stopped = false;
+  let allowed = false;
+  let timer: ReturnType<typeof setInterval> | null = null;
 
   const run = async (): Promise<void> => {
-    if (inFlight || stopped) return;
+    if (inFlight || stopped || !allowed) return;
     inFlight = true;
     try {
       await task();
@@ -35,13 +38,25 @@ export function startPolling(
     if (document.visibilityState === 'visible') void run();
   };
 
-  if (immediate) tick();
-  const timer = setInterval(tick, intervalMs);
+  let firstActivation = true;
+  const unsubscribe = authState.subscribe((state) => {
+    const nextAllowed = canAccessApplication(state);
+    if (nextAllowed === allowed) return;
+    allowed = nextAllowed;
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+    if (allowed) {
+      if (immediate || !firstActivation) tick();
+      firstActivation = false;
+      timer = setInterval(tick, intervalMs);
+    }
+  });
   document.addEventListener('visibilitychange', onVisibility);
 
   return () => {
     stopped = true;
-    clearInterval(timer);
+    if (timer !== null) clearInterval(timer);
+    unsubscribe();
     document.removeEventListener('visibilitychange', onVisibility);
   };
 }

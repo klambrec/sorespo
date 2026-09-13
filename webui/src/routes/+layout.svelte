@@ -8,6 +8,8 @@
   import { onMount, type Component, type Snippet } from 'svelte';
 
   import CommandPalette from '$lib/core/command-palette/CommandPalette.svelte';
+  import SignIn from '$lib/core/auth/SignIn.svelte';
+  import { authState, canAccessApplication, session } from '$lib/core/auth/session';
   import { isPendingQueueItem } from '$lib/core/orchestron/client';
   import { queuesPoll, refreshQueues } from '$lib/core/orchestron/poll-store';
   import { getServiceModule, listServiceModuleMeta } from '$lib/core/registry/service-modules';
@@ -27,8 +29,48 @@
   let totalPendingCount = $derived($queuesPoll.queues.filter(isPendingQueueItem).length);
   let paletteOpen = $state(false);
   let DemoShell = $state<Component | null>(null);
+  let applicationMounted = $state(false);
+  let restoringSession = $state(false);
+  let signingOut = $state(false);
+  let logoutError = $state('');
+  let allowed = $derived(canAccessApplication($authState));
+  let previousAccess = false;
+
+  // Route loaders can finish with a sign-in requirement on an initial deep
+  // link. Reload their data before mounting the page after authentication.
+  // During expiry keep the mounted page hidden, preserving in-memory drafts;
+  // existing editors already preserve dirty drafts across invalidation.
+  $effect(() => {
+    const access = allowed;
+    if (access && !previousAccess) {
+      restoringSession = true;
+      void invalidateAll().catch(() => {}).finally(() => {
+        if (canAccessApplication(session.state)) applicationMounted = true;
+        restoringSession = false;
+      });
+    } else if (!access) {
+      paletteOpen = false;
+    }
+    previousAccess = access;
+  });
+
+  async function handleLogout(): Promise<void> {
+    if (signingOut) return;
+    signingOut = true;
+    logoutError = '';
+    try {
+      await session.logout();
+    } catch (error) {
+      logoutError = error instanceof Error ? error.message : 'Unable to sign out. Please try again.';
+    } finally {
+      // Explicit logout discards mounted private data and drafts.
+      if (!canAccessApplication(session.state)) applicationMounted = false;
+      signingOut = false;
+    }
+  }
 
   onMount(() => {
+    void session.ensureSession().catch(() => {});
     // Statically false outside demo builds, so the chunk is never emitted.
     if (PUBLIC_DEMO === '1') {
       void import('$lib/demo/DemoShell.svelte').then((mod) => {
@@ -38,12 +80,14 @@
   });
 
   async function handleRefresh(): Promise<void> {
+    if (!allowed) return;
     window.dispatchEvent(new CustomEvent('global-refresh'));
     await Promise.all([refreshQueues(), invalidateAll()]);
   }
 
   onMount(() => {
     const handler = (event: KeyboardEvent) => {
+      if (!allowed) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         paletteOpen = !paletteOpen;
@@ -131,6 +175,14 @@
   <title>{pageTitle}</title>
 </svelte:head>
 
+{#if !allowed}
+  <SignIn />
+{:else if restoringSession || !applicationMounted}
+  <main class="session-loading" role="status">Loading your workspace…</main>
+{/if}
+
+{#if applicationMounted}
+<div class="authenticated-workspace" hidden={!allowed || restoringSession} inert={!allowed || restoringSession}>
 <div class="app-shell">
   <!-- Sidebar -->
   <aside class="sidebar">
@@ -263,6 +315,14 @@
       </nav>
 
       <div class="header-actions">
+        {#if $authState.session?.authenticated}
+          <span class="session-user" title={$authState.session.user?.subject}>
+            {$authState.session.user?.display_name || $authState.session.user?.subject}
+          </span>
+          <button class="btn btn-ghost btn-sm" type="button" onclick={handleLogout} disabled={signingOut}>
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        {/if}
         <LiveIndicator />
         <button class="btn btn-ghost btn-sm cmdk-trigger" type="button" onclick={() => (paletteOpen = true)} aria-label="Open command palette">
           Search <kbd>⌘K</kbd>
@@ -274,6 +334,7 @@
     </header>
 
     <main class="app-content">
+      {#if logoutError}<p class="logout-error" role="alert">{logoutError}</p>{/if}
       {#key currentPathname}
         <div class="page-enter">
           {@render children?.()}
@@ -288,8 +349,14 @@
 {#if DemoShell}
   <DemoShell />
 {/if}
+</div>
+{/if}
 
 <style>
+  .authenticated-workspace[hidden] { display: none; }
+  .session-loading { min-height: 100dvh; display: grid; place-items: center; color: var(--sw-text-muted); }
+  .session-user { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--sw-text-muted); }
+  .logout-error { color: var(--sw-danger); }
   .nav-subsection {
     display: grid;
     gap: 2px;

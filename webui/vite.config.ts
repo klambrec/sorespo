@@ -38,6 +38,7 @@ function demoStubs(): Plugin {
 // (%2F, %2C, %25, ...) depend on.
 const API_PROXY_TARGET = process.env.STRATOWEAVE_API_ORIGIN ?? 'http://localhost:3000';
 const API_PROXY_PREFIXES = [
+  '^/auth(/|$)',
   '^/device(/|$)',
   '^/config-queue(/|$)',
   '^/layer(/|$)',
